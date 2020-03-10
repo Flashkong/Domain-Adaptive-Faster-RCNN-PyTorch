@@ -30,7 +30,7 @@ def train(cfg, local_rank, distributed):
     model = build_detection_model(cfg)
     device = torch.device(cfg.MODEL.DEVICE)
     model.to(device)
-
+    # 通过这种方法来得到optimizer以及lr_scheduler
     optimizer = make_optimizer(cfg, model)
     scheduler = make_lr_scheduler(cfg, optimizer)
 
@@ -43,10 +43,11 @@ def train(cfg, local_rank, distributed):
 
     arguments = {}
     arguments["iteration"] = 0
-
+    # output_dir的值是'.'
     output_dir = cfg.OUTPUT_DIR
-
+    # 结果为True
     save_to_disk = get_rank() == 0
+    # 这个checkpoint类似于faster里面的,可以使用checkpoint处加载数据
     checkpointer = DetectronCheckpointer(
         cfg, model, optimizer, scheduler, output_dir, save_to_disk
     )
@@ -163,6 +164,7 @@ def main():
     args = parser.parse_args()
 
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
+    # 下面这个相当于是判断了是否有多个GPU
     args.distributed = num_gpus > 1
 
     if args.distributed:
@@ -170,10 +172,12 @@ def main():
         torch.distributed.init_process_group(
             backend="nccl", init_method="env://"
         )
+        # 当进行分布式训练的时候用于同步
         synchronize()
 
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
+    # 经过freeze之后就不可改变了
     cfg.freeze()
 
     output_dir = cfg.OUTPUT_DIR
@@ -185,6 +189,7 @@ def main():
     logger.info(args)
 
     logger.info("Collecting env info (might take some time)")
+    # 这句话是搜索系统的信息,包括使用的环境,安装的处理器,python版本,GPU等等信息
     logger.info("\n" + collect_env_info())
 
     logger.info("Loaded configuration file {}".format(args.config_file))

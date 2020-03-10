@@ -1,5 +1,5 @@
 import torch
-
+# 这个文件也是DA加入的
 def consistency_loss(img_feas, ins_fea, ins_labels, size_average=True):
     """
     Consistency regularization as stated in the paper

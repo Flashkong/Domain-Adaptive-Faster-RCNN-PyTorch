@@ -1,6 +1,6 @@
 import torch
 
-
+# 这个文件也是DA加入的
 class _GradientScalarLayer(torch.autograd.Function):
     @staticmethod
     def forward(ctx, input, weight):

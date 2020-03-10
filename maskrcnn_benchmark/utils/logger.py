@@ -5,6 +5,7 @@ import sys
 
 
 def setup_logger(name, save_dir, distributed_rank, filename="log.txt"):
+    # 这里就是创建日志,这里是mask的代码
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
     # don't log results for the non-master process

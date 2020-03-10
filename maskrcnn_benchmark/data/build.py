@@ -155,6 +155,7 @@ def make_data_loader(cfg, is_train=True, is_source=True, is_distributed=False, s
         "maskrcnn_benchmark.config.paths_catalog", cfg.PATHS_CATALOG, True
     )
     DatasetCatalog = paths_catalog.DatasetCatalog
+    # DA start 这个文件里面可能不止这一点
 
     if is_train:
         if cfg.MODEL.DOMAIN_ADAPTATION_ON:
@@ -166,6 +167,7 @@ def make_data_loader(cfg, is_train=True, is_source=True, is_distributed=False, s
 
 
     transforms = build_transforms(cfg, is_train)
+    # DA end
     datasets = build_dataset(dataset_list, transforms, DatasetCatalog, is_train, is_source)
 
     data_loaders = []

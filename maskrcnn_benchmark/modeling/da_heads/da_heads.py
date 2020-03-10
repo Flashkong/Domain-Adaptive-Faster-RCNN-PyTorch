@@ -19,17 +19,23 @@ class DAImgHead(nn.Module):
             USE_FPN (boolean): whether FPN feature extractor is used
         """
         super(DAImgHead, self).__init__()
-        
+
+        # 这里就是论文里面,GRL层之后的conv,通过使用1*1的卷积,不改变feature的宽高,而只改变维度,变为1维,用于预测
         self.conv1_da = nn.Conv2d(in_channels, 512, kernel_size=1, stride=1)
         self.conv2_da = nn.Conv2d(512, 1, kernel_size=1, stride=1)
 
         for l in [self.conv1_da, self.conv2_da]:
+            # 输出下面初始化的结果为requires_grad是True,所以他们都是需要计算梯度的
+            # 正态分布初始化weight
             torch.nn.init.normal_(l.weight, std=0.001)
+            # 常数初始化bias
             torch.nn.init.constant_(l.bias, 0)
 
     def forward(self, x):
         img_features = []
+        # 从这个for循环可以看出他们image-level的batch思想
         for feature in x:
+            # 在conv之后还要进行relu层.
             t = F.relu(self.conv1_da(feature))
             img_features.append(self.conv2_da(t))
         return img_features
@@ -52,6 +58,7 @@ class DAInsHead(nn.Module):
         for l in [self.fc1_da, self.fc2_da]:
             nn.init.normal_(l.weight, std=0.01)
             nn.init.constant_(l.bias, 0)
+        # 第三层的初始化方法和第一第二层不一样
         nn.init.normal_(self.fc3_da.weight, std=0.05)
         nn.init.constant_(self.fc3_da.bias, 0)
 
@@ -71,7 +78,7 @@ class DomainAdaptationModule(torch.nn.Module):
     Module for Domain Adaptation Component. Takes feature maps from the backbone and instance
     feature vectors, domain labels and proposals. Works for both FPN and non-FPN.
     """
-
+    # 这里是DA的关键代码
     def __init__(self, cfg):
         super(DomainAdaptationModule, self).__init__()
 
@@ -79,25 +86,35 @@ class DomainAdaptationModule(torch.nn.Module):
 
         stage_index = 4
         stage2_relative_factor = 2 ** (stage_index - 1)
+        # todo li 这里的输入channel问题需要解决
+
+        # 这个RES2_OUT_CHANNELS应该是底层的resnet,256
         res2_out_channels = cfg.MODEL.RESNETS.RES2_OUT_CHANNELS
-        num_ins_inputs = cfg.MODEL.ROI_BOX_HEAD.MLP_HEAD_DIM if cfg.MODEL.BACKBONE.CONV_BODY.startswith('V') else res2_out_channels * stage2_relative_factor
-        
+        # cfg.MODEL.ROI_BOX_HEAD.MLP_HEAD_DIM是ROI HEAD的神经网络隐藏层的维度
+        # cfg.MODEL.BACKBONE.CONV_BODY.startswith('V')是判断backbone使用的是vgg还是resnet
+        # num_ins_inputs是输入ins-level的维度
+        num_ins_inputs = cfg.MODEL.ROI_BOX_HEAD.MLP_HEAD_DIM if cfg.MODEL.BACKBONE.CONV_BODY.startswith('V') \
+            else res2_out_channels * stage2_relative_factor
+        # bool变量,判读那是否使用了resnet
         self.resnet_backbone = cfg.MODEL.BACKBONE.CONV_BODY.startswith('R')
         self.avgpool = nn.AvgPool2d(kernel_size=7, stride=7)
-        
+        # 计算loss时候的weight,这个在论文中提到了
         self.img_weight = cfg.MODEL.DA_HEADS.DA_IMG_LOSS_WEIGHT
         self.ins_weight = cfg.MODEL.DA_HEADS.DA_INS_LOSS_WEIGHT
         self.cst_weight = cfg.MODEL.DA_HEADS.DA_CST_LOSS_WEIGHT
-
+        # GRL层
+        # todo li 这里难道不是只需要两个GRL层就行了嘛
         self.grl_img = GradientScalarLayer(-1.0*self.cfg.MODEL.DA_HEADS.DA_IMG_GRL_WEIGHT)
         self.grl_ins = GradientScalarLayer(-1.0*self.cfg.MODEL.DA_HEADS.DA_INS_GRL_WEIGHT)
         self.grl_img_consist = GradientScalarLayer(1.0*self.cfg.MODEL.DA_HEADS.DA_IMG_GRL_WEIGHT)
         self.grl_ins_consist = GradientScalarLayer(1.0*self.cfg.MODEL.DA_HEADS.DA_INS_GRL_WEIGHT)
-        
-        in_channels = cfg.MODEL.BACKBONE.OUT_CHANNELS
 
+        # 输入image-level Domain Classifier的channel
+        in_channels = cfg.MODEL.BACKBONE.OUT_CHANNELS
+        # image和ins层面的分类器
         self.imghead = DAImgHead(in_channels)
         self.inshead = DAInsHead(num_ins_inputs)
+        # loss计算器
         self.loss_evaluator = make_da_heads_loss_evaluator(cfg)
 
     def forward(self, img_features, da_ins_feature, da_ins_labels, targets=None):

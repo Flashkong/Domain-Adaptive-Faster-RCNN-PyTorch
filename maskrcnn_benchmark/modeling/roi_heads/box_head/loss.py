@@ -46,8 +46,11 @@ class FastRCNNLossComputation(object):
         # GT in the image, and matched_idxs can be -2, which goes
         # out of bounds
         matched_targets = target[matched_idxs.clamp(min=0)]
+
+        # DA start
         if not is_source:
             matched_targets = target[matched_idxs]
+        # DA end
         matched_targets.add_field("matched_idxs", matched_idxs)
         return matched_targets
 
@@ -77,7 +80,7 @@ class FastRCNNLossComputation(object):
             regression_targets_per_image = self.box_coder.encode(
                 matched_targets.bbox, proposals_per_image.bbox
             )
-
+            # DA start
             domain_label = torch.ones_like(labels_per_image, dtype=torch.uint8) if is_source.any() else torch.zeros_like(labels_per_image, dtype=torch.uint8)
             domain_labels.append(domain_label)
 
@@ -85,11 +88,12 @@ class FastRCNNLossComputation(object):
                 labels_per_image[:] = 0
             if sample_for_da:
                 labels_per_image[:] = 0
-
+            # DA end
             labels.append(labels_per_image)
             regression_targets.append(regression_targets_per_image)
-
+        # DA start
         return labels, regression_targets, domain_labels
+        # DA end
 
     def subsample(self, proposals, targets):
         """
@@ -101,8 +105,9 @@ class FastRCNNLossComputation(object):
             proposals (list[BoxList])
             targets (list[BoxList])
         """
-
+        # DA start
         labels, regression_targets, domain_labels = self.prepare_targets(proposals, targets)
+        # DA end
         sampled_pos_inds, sampled_neg_inds = self.fg_bg_sampler(labels)
 
         proposals = list(proposals)
@@ -114,7 +119,9 @@ class FastRCNNLossComputation(object):
             proposals_per_image.add_field(
                 "regression_targets", regression_targets_per_image
             )
+            # DA start
             proposals_per_image.add_field("domain_labels", domain_label_per_image)
+            # DA end
 
         # distributed sampled proposals, that were obtained on all feature maps
         # concatenated via the fg_bg_sampler, into individual feature map levels
@@ -127,7 +134,8 @@ class FastRCNNLossComputation(object):
 
         self._proposals = proposals
         return proposals
-    
+
+    # DA start 这里整个函数都是
     def subsample_for_da(self, proposals, targets):
         """
         This method performs the positive/negative sampling, and return
@@ -159,6 +167,7 @@ class FastRCNNLossComputation(object):
             proposals[img_idx] = proposals_per_image
 
         return proposals
+    # DA end
 
     def __call__(self, class_logits, box_regression):
         """
@@ -188,12 +197,15 @@ class FastRCNNLossComputation(object):
             [proposal.get_field("regression_targets") for proposal in proposals], dim=0
         )
 
+        # DA start
         domain_masks = cat([proposal.get_field("domain_labels") for proposal in proposals], dim=0)
 
         class_logits = class_logits[domain_masks, :]
         box_regression = box_regression[domain_masks, :]
         labels = labels[domain_masks]
         regression_targets = regression_targets[domain_masks, :]
+
+        # DA end
 
         classification_loss = F.cross_entropy(class_logits, labels)
 
@@ -215,9 +227,9 @@ class FastRCNNLossComputation(object):
             beta=1,
         )
         box_loss = box_loss / labels.numel()
-
+        # DA start
         return classification_loss, box_loss, domain_masks
-
+        # DA end
 
 def make_roi_box_loss_evaluator(cfg):
     matcher = Matcher(

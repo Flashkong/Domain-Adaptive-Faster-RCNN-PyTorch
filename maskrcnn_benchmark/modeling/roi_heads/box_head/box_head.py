@@ -51,10 +51,11 @@ class ROIBoxHead(torch.nn.Module):
             result = self.post_processor((class_logits, box_regression), proposals)
             return x, result, {}, x, None
 
+        # 这里调用的是--call--函数
         loss_classifier, loss_box_reg, _ = self.loss_evaluator(
             [class_logits], [box_regression]
         )
-
+        # DA start
         if self.training:
             with torch.no_grad():
                 da_proposals = self.loss_evaluator.subsample_for_da(proposals, targets)
@@ -71,7 +72,7 @@ class ROIBoxHead(torch.nn.Module):
             da_ins_feas,
             da_ins_labels
         )
-
+        # DA end
 
 def build_roi_box_head(cfg):
     """

@@ -114,6 +114,7 @@ def do_train(
         )
     )
 
+# DA start
 def do_da_train(
     model,
     source_data_loader,
@@ -196,3 +197,4 @@ def do_da_train(
             total_time_str, total_training_time / (max_iter)
         )
     )
+# DA end

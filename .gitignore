@@ -31,3 +31,7 @@ dist/
 
 # log files
 *.out
+
+# my
+github
+tools/log.txt
