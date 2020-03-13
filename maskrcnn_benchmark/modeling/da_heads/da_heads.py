@@ -7,6 +7,7 @@ from maskrcnn_benchmark.layers import GradientScalarLayer
 
 from .loss import make_da_heads_loss_evaluator
 
+
 class DAImgHead(nn.Module):
     """
     Adds a simple Image-level Domain Classifier head
@@ -78,6 +79,7 @@ class DomainAdaptationModule(torch.nn.Module):
     Module for Domain Adaptation Component. Takes feature maps from the backbone and instance
     feature vectors, domain labels and proposals. Works for both FPN and non-FPN.
     """
+
     # 这里是DA的关键代码
     def __init__(self, cfg):
         super(DomainAdaptationModule, self).__init__()
@@ -91,29 +93,38 @@ class DomainAdaptationModule(torch.nn.Module):
         # 这个RES2_OUT_CHANNELS应该是底层的resnet,256
         res2_out_channels = cfg.MODEL.RESNETS.RES2_OUT_CHANNELS
         # cfg.MODEL.ROI_BOX_HEAD.MLP_HEAD_DIM是ROI HEAD的神经网络隐藏层的维度
-        # cfg.MODEL.BACKBONE.CONV_BODY.startswith('V')是判断backbone使用的是vgg还是resnet
+        # cfg.MODEL.BACKBONE.CONV_BODY.startswith('V')是判断backbone使用的是vgg还是resnet，
+        #       如果是vgg的话，ins那里使用的就是常规的神经网络层，
+        #       如果使用的是resnet，则ins那里也是使用的resnet
         # num_ins_inputs是输入ins-level的维度
         num_ins_inputs = cfg.MODEL.ROI_BOX_HEAD.MLP_HEAD_DIM if cfg.MODEL.BACKBONE.CONV_BODY.startswith('V') \
             else res2_out_channels * stage2_relative_factor
-        # bool变量,判读那是否使用了resnet
+        # bool变量,判读那是否使用了resnet，在这个环境下，值为True
         self.resnet_backbone = cfg.MODEL.BACKBONE.CONV_BODY.startswith('R')
+
         self.avgpool = nn.AvgPool2d(kernel_size=7, stride=7)
+
         # 计算loss时候的weight,这个在论文中提到了
+        # DA_IMG_LOSS_WEIGHT和DA_INS_LOSS_WEIGHT是1.0，而DA_CST_LOSS_WEIGHT是0.1
         self.img_weight = cfg.MODEL.DA_HEADS.DA_IMG_LOSS_WEIGHT
         self.ins_weight = cfg.MODEL.DA_HEADS.DA_INS_LOSS_WEIGHT
         self.cst_weight = cfg.MODEL.DA_HEADS.DA_CST_LOSS_WEIGHT
+
         # GRL层
+        # DA_IMG_GRL_WEIGHT和DA_INS_GRL_WEIGHT的值都是0.1
         # todo li 这里难道不是只需要两个GRL层就行了嘛
-        self.grl_img = GradientScalarLayer(-1.0*self.cfg.MODEL.DA_HEADS.DA_IMG_GRL_WEIGHT)
-        self.grl_ins = GradientScalarLayer(-1.0*self.cfg.MODEL.DA_HEADS.DA_INS_GRL_WEIGHT)
-        self.grl_img_consist = GradientScalarLayer(1.0*self.cfg.MODEL.DA_HEADS.DA_IMG_GRL_WEIGHT)
-        self.grl_ins_consist = GradientScalarLayer(1.0*self.cfg.MODEL.DA_HEADS.DA_INS_GRL_WEIGHT)
+        self.grl_img = GradientScalarLayer(-1.0 * self.cfg.MODEL.DA_HEADS.DA_IMG_GRL_WEIGHT)
+        self.grl_ins = GradientScalarLayer(-1.0 * self.cfg.MODEL.DA_HEADS.DA_INS_GRL_WEIGHT)
+        self.grl_img_consist = GradientScalarLayer(1.0 * self.cfg.MODEL.DA_HEADS.DA_IMG_GRL_WEIGHT)
+        self.grl_ins_consist = GradientScalarLayer(1.0 * self.cfg.MODEL.DA_HEADS.DA_INS_GRL_WEIGHT)
 
         # 输入image-level Domain Classifier的channel
         in_channels = cfg.MODEL.BACKBONE.OUT_CHANNELS
+
         # image和ins层面的分类器
         self.imghead = DAImgHead(in_channels)
         self.inshead = DAInsHead(num_ins_inputs)
+
         # loss计算器
         self.loss_evaluator = make_da_heads_loss_evaluator(cfg)
 
@@ -131,6 +142,9 @@ class DomainAdaptationModule(torch.nn.Module):
                 testing, it is an empty dict.
         """
         if self.resnet_backbone:
+            # 如果是resnet的话，要先进行一次avgpool，
+            #   参考maskrcnn_benchmark/modeling/roi_heads/box_head/roi_box_predictors.py
+            #   此文件在使用feature进行预测的时候，也是先进行了avgpool，大小一样
             da_ins_feature = self.avgpool(da_ins_feature)
         da_ins_feature = da_ins_feature.view(da_ins_feature.size(0), -1)
 
@@ -143,11 +157,13 @@ class DomainAdaptationModule(torch.nn.Module):
         da_ins_features = self.inshead(ins_grl_fea)
         da_img_consist_features = self.imghead(img_grl_consist_fea)
         da_ins_consist_features = self.inshead(ins_grl_consist_fea)
+
         da_img_consist_features = [fea.sigmoid() for fea in da_img_consist_features]
         da_ins_consist_features = da_ins_consist_features.sigmoid()
         if self.training:
             da_img_loss, da_ins_loss, da_consistency_loss = self.loss_evaluator(
-                da_img_features, da_ins_features, da_img_consist_features, da_ins_consist_features, da_ins_labels, targets
+                da_img_features, da_ins_features, da_img_consist_features, da_ins_consist_features, da_ins_labels,
+                targets
             )
             losses = {}
             if self.img_weight > 0:
@@ -158,6 +174,7 @@ class DomainAdaptationModule(torch.nn.Module):
                 losses["loss_da_consistency"] = self.cst_weight * da_consistency_loss
             return losses
         return {}
+
 
 def build_da_heads(cfg):
     if cfg.MODEL.DOMAIN_ADAPTATION_ON:

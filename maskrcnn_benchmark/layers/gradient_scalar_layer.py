@@ -10,6 +10,8 @@ class _GradientScalarLayer(torch.autograd.Function):
     @staticmethod
     def backward(ctx, grad_output):
         grad_input = grad_output.clone()
+        # 我有点奇怪，为什么这里不是-ctx.weight*grad_input
+        #   我知道了，因为在GradientScalarLayer类init传进来的参数就是已经正负过的了
         return ctx.weight*grad_input, None
 
 gradient_scalar = _GradientScalarLayer.apply
@@ -23,6 +25,7 @@ class GradientScalarLayer(torch.nn.Module):
     def forward(self, input):
         return gradient_scalar(input, self.weight)
 
+    # 是负责在控制台打印的时候输出的
     def __repr__(self):
         tmpstr = self.__class__.__name__ + "("
         tmpstr += "weight=" + str(self.weight)

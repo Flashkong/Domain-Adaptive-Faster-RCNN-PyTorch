@@ -36,6 +36,7 @@ class DALossComputation(object):
         masks = []
         for targets_per_image in targets:
             is_source = targets_per_image.get_field('is_source')
+            # source是1，target是0
             mask_per_image = is_source.new_ones(1, dtype=torch.uint8) if is_source.any() else is_source.new_zeros(1, dtype=torch.uint8)
             masks.append(mask_per_image)
         return masks
@@ -69,6 +70,7 @@ class DALossComputation(object):
             N, A, H, W = da_img_per_level.shape
             da_img_per_level = da_img_per_level.permute(0, 2, 3, 1)
             da_img_label_per_level = torch.zeros_like(da_img_per_level, dtype=torch.float32)
+            # 在源域数据的地方填充为1
             da_img_label_per_level[masks, :] = 1
 
             da_img_per_level = da_img_per_level.reshape(N, -1)
@@ -79,10 +81,12 @@ class DALossComputation(object):
             
         da_img_flattened = torch.cat(da_img_flattened, dim=0)
         da_img_labels_flattened = torch.cat(da_img_labels_flattened, dim=0)
-        
+
+        # todo li 这不对啊，按照这个损失的话，源域是1，目标域是0啊，这和原文不一致
         da_img_loss = F.binary_cross_entropy_with_logits(
             da_img_flattened, da_img_labels_flattened
         )
+        # 这个domain-labels源域是1，目标域是0，在这里也是源域是1，目标域是0
         da_ins_loss = F.binary_cross_entropy_with_logits(
             torch.squeeze(da_ins), da_ins_labels.type(torch.cuda.FloatTensor)
         )

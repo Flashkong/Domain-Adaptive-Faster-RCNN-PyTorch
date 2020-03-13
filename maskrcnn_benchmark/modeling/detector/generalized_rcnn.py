@@ -57,6 +57,9 @@ class GeneralizedRCNN(nn.Module):
         # DA end
         if self.roi_heads:
             # DA start
+            # 这里的x是proposal对应的feature经过特征提取后的feature
+            # 如果是训练阶段，result是修改后的proposal，而非预测的结果（proposal+bbox）
+            # 如果是测试阶段，则result是最终的结果（proposal+bbox）
             x, result, detector_losses, da_ins_feas, da_ins_labels = self.roi_heads(features, proposals, targets)
 
             if self.da_heads:
