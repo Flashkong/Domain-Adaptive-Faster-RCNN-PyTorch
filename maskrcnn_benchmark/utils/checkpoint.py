@@ -117,6 +117,7 @@ class DetectronCheckpointer(Checkpointer):
     def _load_file(self, f):
         # catalog lookup
         if f.startswith("catalog://"):
+            # 这种情况就是本模型的情况catalog://ImageNetPretrained/MSRA/R-50
             paths_catalog = import_file(
                 "maskrcnn_benchmark.config.paths_catalog", self.cfg.PATHS_CATALOG, True
             )

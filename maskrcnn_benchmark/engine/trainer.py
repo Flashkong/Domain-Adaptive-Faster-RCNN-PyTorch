@@ -130,18 +130,23 @@ def do_da_train(
     logger = logging.getLogger("maskrcnn_benchmark.trainer")
     logger.info("Start training")
     meters = MetricLogger(delimiter=" ")
+    # todo li max_iter怎么会在这里？
     max_iter = len(source_data_loader)
     start_iter = arguments["iteration"]
+    # 设置为训练模式，不是直接开始训练
     model.train()
     start_training_time = time.time()
     end = time.time()
-    for iteration, ((source_images, source_targets, idx1), (target_images, target_targets, idx2)) in enumerate(zip(source_data_loader, target_data_loader), start_iter):
+    for iteration, ((source_images, source_targets, idx1), (target_images, target_targets, idx2))\
+            in enumerate(zip(source_data_loader, target_data_loader), start_iter):
         data_time = time.time() - end
         arguments["iteration"] = iteration
 
+        # 源数据和目标数据
         images = (source_images+target_images).to(device)
         targets = [target.to(device) for target in list(source_targets+target_targets)]
 
+        # 正向传播
         loss_dict = model(images, targets)
 
         losses = sum(loss for loss in loss_dict.values())
@@ -152,6 +157,7 @@ def do_da_train(
         meters.update(loss=losses_reduced, **loss_dict_reduced)
 
         optimizer.zero_grad()
+        # 反向传播
         losses.backward()
         optimizer.step()
         
@@ -164,6 +170,7 @@ def do_da_train(
         eta_seconds = meters.time.global_avg * (max_iter - iteration)
         eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
 
+        # 迭代20次，log一次
         if iteration % 20 == 0 or iteration == max_iter:
             logger.info(
                 meters.delimiter.join(

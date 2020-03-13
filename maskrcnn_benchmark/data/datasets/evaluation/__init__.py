@@ -15,6 +15,8 @@ def evaluate(dataset, predictions, output_folder, **kwargs):
     Returns:
         evaluation result
     """
+
+    # 这里才是真生的计算精度部分
     args = dict(
         dataset=dataset, predictions=predictions, output_folder=output_folder, **kwargs
     )

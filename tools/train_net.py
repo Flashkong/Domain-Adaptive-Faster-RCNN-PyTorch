@@ -27,6 +27,7 @@ from maskrcnn_benchmark.utils.miscellaneous import mkdir
 
 
 def train(cfg, local_rank, distributed):
+    # 构建模型
     model = build_detection_model(cfg)
     device = torch.device(cfg.MODEL.DEVICE)
     model.to(device)
@@ -35,6 +36,7 @@ def train(cfg, local_rank, distributed):
     scheduler = make_lr_scheduler(cfg, optimizer)
 
     if distributed:
+        # 如果是分布式训练，这里我们不用管
         model = torch.nn.parallel.DistributedDataParallel(
             model, device_ids=[local_rank], output_device=local_rank,
             # this should be removed if we update BatchNorm stats
@@ -48,12 +50,16 @@ def train(cfg, local_rank, distributed):
     # 结果为True
     save_to_disk = get_rank() == 0
     # 这个checkpoint类似于faster里面的,可以使用checkpoint处加载数据
+    # 调用的这个DetectronCheckpointer文件的内容都没有动
     checkpointer = DetectronCheckpointer(
         cfg, model, optimizer, scheduler, output_dir, save_to_disk
     )
+    # cfg.model.weight是catalog://ImageNetPretrained/MSRA/R-50
     extra_checkpoint_data = checkpointer.load(cfg.MODEL.WEIGHT)
+    # 这个update可以更新已经有的key，所以下面dataloader时候，arguments["iteration"]也会改变
     arguments.update(extra_checkpoint_data)
 
+    # 这个的值是2500
     checkpoint_period = cfg.SOLVER.CHECKPOINT_PERIOD
 
     if cfg.MODEL.DOMAIN_ADAPTATION_ON:
@@ -107,6 +113,7 @@ def train(cfg, local_rank, distributed):
 
 
 def test(cfg, model, distributed):
+    # 这里传进来的model本来就是已经有参数的，所以不用使用checkpoint加载
     if distributed:
         model = model.module
     torch.cuda.empty_cache()  # TODO check if it helps
@@ -119,11 +126,16 @@ def test(cfg, model, distributed):
     dataset_names = cfg.DATASETS.TEST
     if cfg.OUTPUT_DIR:
         for idx, dataset_name in enumerate(dataset_names):
+            # 创建保存数据的文件夹，为./inference/dataset_name
             output_folder = os.path.join(cfg.OUTPUT_DIR, "inference", dataset_name)
             mkdir(output_folder)
             output_folders[idx] = output_folder
+    # 加载数据
     data_loaders_val = make_data_loader(cfg, is_train=False, is_distributed=distributed)
-    for output_folder, dataset_name, data_loader_val in zip(output_folders, dataset_names, data_loaders_val):
+    # 这里是遍历测试的数据，每个都跑一遍
+    for output_folder, dataset_name, data_loader_val \
+            in zip(output_folders, dataset_names, data_loaders_val):
+        # 这个inference其实相当于是val
         inference(
             model,
             data_loader_val,

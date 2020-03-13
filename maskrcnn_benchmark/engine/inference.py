@@ -14,8 +14,10 @@ from ..utils.comm import synchronize
 
 
 def compute_on_dataset(model, data_loader, device):
+    # 设置为eval模式
     model.eval()
     results_dict = {}
+    # todo li 这里不太明白，进行验证计算的时候使用的是cpu吗
     cpu_device = torch.device("cpu")
     for i, batch in enumerate(tqdm(data_loader)):
         images, targets, image_ids = batch
@@ -83,7 +85,7 @@ def inference(
             total_time_str, total_time * num_devices / len(dataset), num_devices
         )
     )
-
+    # 得到的这些都是预测，还没有计算精度什么的
     predictions = _accumulate_predictions_from_multiple_gpus(predictions)
     if not is_main_process():
         return
@@ -98,6 +100,7 @@ def inference(
         expected_results_sigma_tol=expected_results_sigma_tol,
     )
 
+    # 进行精度的计算，在这个函数里面，通过日志将相关信息“打印”了
     return evaluate(dataset=dataset,
                     predictions=predictions,
                     output_folder=output_folder,

@@ -22,6 +22,7 @@ def main():
     parser = argparse.ArgumentParser(description="PyTorch Object Detection Inference")
     parser.add_argument(
         "--config-file",
+        # 我怎么觉得这里需要改一改
         default="/private/home/fmassa/github/detectron.pytorch_v2/configs/e2e_faster_rcnn_R_50_C4_1x_caffe2.yaml",
         metavar="FILE",
         help="path to config file",
@@ -46,6 +47,7 @@ def main():
         )
         synchronize()
 
+    # 加载配置
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
     cfg.freeze()
@@ -58,9 +60,11 @@ def main():
     logger.info("Collecting env info (might take some time)")
     logger.info("\n" + collect_env_info())
 
+    # 建立模型
     model = build_detection_model(cfg)
     model.to(cfg.MODEL.DEVICE)
 
+    # 加载weight和各种数据
     output_dir = cfg.OUTPUT_DIR
     checkpointer = DetectronCheckpointer(cfg, model, save_dir=output_dir)
     _ = checkpointer.load(cfg.MODEL.WEIGHT)
@@ -70,7 +74,11 @@ def main():
         iou_types = iou_types + ("segm",)
     if cfg.MODEL.KEYPOINT_ON:
         iou_types = iou_types + ("keypoints",)
+    # 下面的这些都和train的时候做的val的代码一样
     output_folders = [None] * len(cfg.DATASETS.TEST)
+
+    # 重要
+    #   由于配置文件不同，所以这里的dataset和train的时候进行val的dataset是不一样的
     dataset_names = cfg.DATASETS.TEST
     if cfg.OUTPUT_DIR:
         for idx, dataset_name in enumerate(dataset_names):

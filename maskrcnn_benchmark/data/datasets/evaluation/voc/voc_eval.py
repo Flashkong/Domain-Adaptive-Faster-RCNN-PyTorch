@@ -8,7 +8,7 @@ import numpy as np
 from maskrcnn_benchmark.structures.bounding_box import BoxList
 from maskrcnn_benchmark.structures.boxlist_ops import boxlist_iou
 
-
+# 真正的计算精度部分
 def do_voc_evaluation(dataset, predictions, output_folder, logger):
     # TODO need to make the use_07_metric format available
     # for the user to choose
@@ -38,6 +38,7 @@ def do_voc_evaluation(dataset, predictions, output_folder, logger):
         result_str += "{:<16}: {:.4f}\n".format(
             dataset.map_class_id_to_class_name(i), ap
         )
+    # 将数据输出到日志文件
     logger.info(result_str)
     if output_folder:
         with open(os.path.join(output_folder, "result.txt"), "w") as fid:
