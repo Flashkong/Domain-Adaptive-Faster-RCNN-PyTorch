@@ -62,6 +62,9 @@ def build_roi_heads(cfg):
     if cfg.MODEL.RETINANET_ON:
         return []
 
+    # 这里的都是maskrcnn-benchmark的原始代码
+    # 从这里的代码可以看到，如果不是RPN——only的话，box是必须的，mask和keypoint是根据配置文件加载的
+    # 在当前项目中，只需要box
     if not cfg.MODEL.RPN_ONLY:
         roi_heads.append(("box", build_roi_box_head(cfg)))
     if cfg.MODEL.MASK_ON:

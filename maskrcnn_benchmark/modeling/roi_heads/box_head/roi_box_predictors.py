@@ -26,6 +26,9 @@ class FastRCNNPredictor(nn.Module):
         nn.init.constant_(self.bbox_pred.bias, 0)
 
     def forward(self, x):
+        # 这里是进行预测的模块，但是我其实有点小奇怪为什么这里要先进行avgpool
+        # 下面的cls-score以及bbox-pred也只有一个线性预测层，这让我想起roi-pooling那里，在pooling之后经过了一个resnethead
+        # 可能是那个resnetHead代替了原本的线性层
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         cls_logit = self.cls_score(x)
@@ -57,5 +60,6 @@ class FPNPredictor(nn.Module):
 
 
 def make_roi_box_predictor(cfg):
+    # 此项目的PREDICTOR的值是FastRCNNPredictor
     func = registry.ROI_BOX_PREDICTOR[cfg.MODEL.ROI_BOX_HEAD.PREDICTOR]
     return func(cfg)

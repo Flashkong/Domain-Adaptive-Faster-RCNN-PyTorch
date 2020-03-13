@@ -25,6 +25,7 @@ class ResNet50Conv5ROIFeatureExtractor(nn.Module):
         )
 
         stage = resnet.StageSpec(index=4, block_count=3, return_features=False)
+        # 这里我就先理解为一个简单的ResNet
         head = resnet.ResNetHead(
             block_module=config.MODEL.RESNETS.TRANS_FUNC,
             stages=(stage,),
@@ -40,6 +41,8 @@ class ResNet50Conv5ROIFeatureExtractor(nn.Module):
         self.head = head
 
     def forward(self, x, proposals):
+        # 这里输入的x是resnet的输出feature，proposal是修正后的RPN框
+        # 这里的操作就相当于是ROI-Pooling
         x = self.pooler(x, proposals)
         x = self.head(x)
         return x
@@ -143,6 +146,8 @@ class FPNXconv1fcFeatureExtractor(nn.Module):
 
 
 def make_roi_box_feature_extractor(cfg):
+    # FEATURE_EXTRACTOR的值是"ResNet50Conv5ROIFeatureExtractor"
+    # 这里应该就对应了上面的这几个类
     func = registry.ROI_BOX_FEATURE_EXTRACTORS[
         cfg.MODEL.ROI_BOX_HEAD.FEATURE_EXTRACTOR
     ]
