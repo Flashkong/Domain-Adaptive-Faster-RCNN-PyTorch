@@ -137,6 +137,8 @@ def do_da_train(
     model.train()
     start_training_time = time.time()
     end = time.time()
+    # 和SHOT的代码相比，这个代码里面没有对source_data_loader进行一个for循环迭代，是因为zip函数实现了
+    # 但是这个iteration就不是epoch了，每次iteration就是对每次从DataLoader里面出来的数据的一次迭代，并不是整个数据集的一次迭代
     for iteration, ((source_images, source_targets, idx1), (target_images, target_targets, idx2))\
             in enumerate(zip(source_data_loader, target_data_loader), start_iter):
         data_time = time.time() - end
